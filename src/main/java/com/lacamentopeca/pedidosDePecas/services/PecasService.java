@@ -2,6 +2,7 @@ package com.lacamentopeca.pedidosDePecas.services;
 
 import com.lacamentopeca.pedidosDePecas.model.Pecas;
 import com.lacamentopeca.pedidosDePecas.repositories.PecasRepository;
+import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -9,10 +10,10 @@ import java.util.List;
 import java.util.Optional;
 
 @Service
+@RequiredArgsConstructor
 public class PecasService {
 
-    @Autowired
-    private PecasRepository pecasRepository;
+    private final PecasRepository pecasRepository;
 
     public Optional<Pecas> getPecaById(Integer id) {
         return pecasRepository.findById(id);

@@ -1,6 +1,7 @@
 package com.lacamentopeca.pedidosDePecas.services;
 import com.lacamentopeca.pedidosDePecas.DTO.CustomPedidoResponse;
 import com.lacamentopeca.pedidosDePecas.DTO.RequestPedidos;
+import com.lacamentopeca.pedidosDePecas.model.Pecas;
 import com.lacamentopeca.pedidosDePecas.model.Pedidos;
 import com.lacamentopeca.pedidosDePecas.model.Usuarios;
 import com.lacamentopeca.pedidosDePecas.repositories.PecasRepository;
@@ -8,7 +9,7 @@ import com.lacamentopeca.pedidosDePecas.repositories.PedidosRepository;
 import com.lacamentopeca.pedidosDePecas.repositories.UsuariosRepository;
 import jakarta.persistence.EntityNotFoundException;
 import jakarta.transaction.Transactional;
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -19,25 +20,17 @@ import java.util.List;
 import java.util.Optional;
 
 @Service
+@RequiredArgsConstructor
 public class PedidoService {
 
     private final PedidosRepository pedidosRepository;
+    private final PecasRepository pecasRepository;
+    private final UsuariosRepository usuariosRepository;
+    private final UserService authorizationService;
 
-    private PecasRepository pecasRepository;
-
-    private UsuariosRepository usuariosRepository;
-
-    @Autowired
-    public PedidoService(PedidosRepository pedidosRepository) {
-        this.pedidosRepository = pedidosRepository;
-    }
 
     public List<CustomPedidoResponse> getPedidosByStatus(String status) {
         return pedidosRepository.findByStatus(status);
-    }
-
-    public List<CustomPedidoResponse> getPedidosByStatusOrStatus(String status1, String status2) {
-        return pedidosRepository.findByStatusOrStatus(status1, status2);
     }
 
     public List<CustomPedidoResponse> getPedidosByIdAndStatus(Integer id, String status) {
@@ -88,22 +81,24 @@ public class PedidoService {
         return pedidosRepository.findAll();
     }
 
-    public ResponseEntity<Void> registerPedido(RequestPedidos pedido) {
-        if (pecasRepository.findById(pedido.peca_id()).orElseThrow().getActive()) {
-            Pedidos pedidos = new Pedidos(pedido);
-            pedidos.setData_pedidos(LocalDateTime.now());
-            pedidos.setOrdem_servico(pedido.ordem_servico());
+    @Transactional
+    public Pedidos registerPedido(RequestPedidos pedidoDTO) {
+        Pecas peca = pecasRepository.findById(pedidoDTO.peca_id())
+                .orElseThrow(() -> new EntityNotFoundException("Peça não encontrada"));
 
-            Usuarios usuarioAbertura = usuariosRepository.findById(pedido.usuarios_id_abertura())
-                    .orElseThrow(() -> new RuntimeException("Usuário não encontrado"));
-            pedidos.setUsuarioAbertura(usuarioAbertura);
-
-            pedidosRepository.save(pedidos);
-            return ResponseEntity.ok().build();
-        } else {
-            System.out.println("Peça inativa");
-            return ResponseEntity.badRequest().build();
+        if (!peca.getActive()) {
+            throw new IllegalStateException("Não é possível criar pedido para peça inativa");
         }
+        Usuarios usuarioAbertura = usuariosRepository.findById(pedidoDTO.usuarios_id_abertura())
+                .orElseThrow(() -> new EntityNotFoundException("Usuário não encontrado"));
+        Pedidos novoPedido = new Pedidos();
+        novoPedido.setPeca(peca);
+        novoPedido.setUsuarioAbertura(usuarioAbertura);
+        novoPedido.setOrdem_servico(pedidoDTO.ordem_servico());
+        novoPedido.setStatus("SOLICITADO");
+        novoPedido.setData_pedidos(LocalDateTime.now());
+
+        return pedidosRepository.save(novoPedido);
     }
 
     @Transactional
@@ -115,8 +110,7 @@ public class PedidoService {
 
             Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
             String username = authentication.getName();
-            Integer userId = AuthorizationService.obterIdPorNomeDeUsuario(username);
-
+            Integer userId = authorizationService.obterIdPorNomeDeUsuario(username);
             Usuarios usuarioFechamento = usuariosRepository.findById(userId)
                     .orElseThrow(() -> new RuntimeException("Usuário não encontrado"));
             pedido.setUsuarioFechamento(usuarioFechamento);

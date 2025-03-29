@@ -5,21 +5,17 @@ import com.lacamentopeca.pedidosDePecas.model.Page;
 import com.lacamentopeca.pedidosDePecas.repositories.PageRepository;
 import jakarta.persistence.EntityNotFoundException;
 import jakarta.transaction.Transactional;
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
 import java.util.Optional;
 
 @Service
+@RequiredArgsConstructor
 public class PageService {
 
     private final PageRepository pageRepository;
-
-    @Autowired
-    public PageService(PageRepository pageRepository) {
-        this.pageRepository = pageRepository;
-    }
 
     @Transactional
     public Page createPage(RequestPage data) {

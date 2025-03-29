@@ -43,5 +43,6 @@ public class Pedidos {
     public Pedidos(RequestPedidos requestPedidos){
         this.ordem_servico = requestPedidos.ordem_servico();
         this.status = "SOLICITADO";
+        this.data_pedidos = LocalDateTime.now();
     }
 }

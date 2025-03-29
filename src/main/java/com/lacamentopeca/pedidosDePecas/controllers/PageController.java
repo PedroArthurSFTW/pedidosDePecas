@@ -7,6 +7,7 @@ import com.lacamentopeca.pedidosDePecas.services.PageService;
 import jakarta.persistence.EntityNotFoundException;
 import jakarta.transaction.Transactional;
 import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -16,9 +17,9 @@ import java.util.Optional;
 @CrossOrigin(origins = "*")
 @RestController
 @RequestMapping("/page")
+@RequiredArgsConstructor
 public class PageController {
-    @Autowired
-    private PageService pageService;
+    private final PageService pageService;
 
     @GetMapping("/{id}")
     public ResponseEntity<Page> getPageById(@PathVariable Integer id) {

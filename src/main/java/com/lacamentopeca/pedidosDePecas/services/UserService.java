@@ -1,16 +1,15 @@
 package com.lacamentopeca.pedidosDePecas.services;
 
 import com.lacamentopeca.pedidosDePecas.DTO.RegisterUsuarios;
+import com.lacamentopeca.pedidosDePecas.DTO.UsuarioResponseDTO;
 import com.lacamentopeca.pedidosDePecas.infra.security.UsernameAlreadyExistsException;
-import com.lacamentopeca.pedidosDePecas.repositories.UsuariosRepository;
 import com.lacamentopeca.pedidosDePecas.model.Usuarios;
+import com.lacamentopeca.pedidosDePecas.repositories.UsuariosRepository;
 import jakarta.persistence.EntityNotFoundException;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.ResponseEntity;
+import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
-import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
@@ -18,17 +17,12 @@ import java.util.List;
 import java.util.Optional;
 
 @Service
-public class AuthorizationService implements UserDetailsService {
+@RequiredArgsConstructor
+public class UserService implements UserDetailsService {
 
-    private static UsuariosRepository usuariosRepository;
+    private final UsuariosRepository usuariosRepository;
     private final PasswordEncoder passwordEncoder;
 
-
-    public AuthorizationService(UsuariosRepository usuariosRepository,
-                                PasswordEncoder passwordEncoder) {
-        this.usuariosRepository = usuariosRepository;
-        this.passwordEncoder = passwordEncoder;
-    }
     @Override
     public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
         return usuariosRepository.findByUsername(username);
@@ -38,16 +32,12 @@ public class AuthorizationService implements UserDetailsService {
         return usuariosRepository.findByUsernameContaining(keyword);
     }
 
-    public static Integer obterIdPorNomeDeUsuario(String username) {
+    public Integer obterIdPorNomeDeUsuario(String username) {
         Usuarios user = (Usuarios) usuariosRepository.findByUsername(username);
         if (user != null) {
             return user.getId();
         }
         return null;
-    }
-
-    public List<Usuarios> getUsuario(String keyword) {
-        return usuariosRepository.findByUsernameContaining(keyword);
     }
 
     public List<Usuarios> toggleLockAccount(Integer id, Integer valida) {
@@ -71,20 +61,19 @@ public class AuthorizationService implements UserDetailsService {
         }
     }
 
-    public ResponseEntity<String> register(RegisterUsuarios data) {
+    public UsuarioResponseDTO register(RegisterUsuarios data) {
         if (usuariosRepository.findByUsername(data.username()) != null) {
             throw new UsernameAlreadyExistsException("Username already exists");
         }
 
         String encryptedPassword = passwordEncoder.encode(data.password());
         Usuarios newUsuario = new Usuarios(data.username(), encryptedPassword, data.role());
+        Usuarios usuarioSalvo = usuariosRepository.save(newUsuario);
 
-        usuariosRepository.save(newUsuario);
-        return ResponseEntity.ok("Usuário registrado com sucesso");
+        return new UsuarioResponseDTO(usuarioSalvo);
     }
 
-    public List<Usuarios> findAll(){
+    public List<Usuarios> findAll() {
         return usuariosRepository.findAll();
     }
-
 }

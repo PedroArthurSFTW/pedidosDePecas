@@ -5,18 +5,15 @@ import com.lacamentopeca.pedidosDePecas.model.Pedidos;
 import com.lacamentopeca.pedidosDePecas.DTO.RequestPedidos;
 import com.lacamentopeca.pedidosDePecas.repositories.PecasRepository;
 import com.lacamentopeca.pedidosDePecas.repositories.PedidosRepository;
-import com.lacamentopeca.pedidosDePecas.services.AuthorizationService;
+import com.lacamentopeca.pedidosDePecas.services.UserService;
 import com.lacamentopeca.pedidosDePecas.services.PedidoService;
 import jakarta.persistence.EntityNotFoundException;
 import jakarta.transaction.Transactional;
 import jakarta.validation.Valid;
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
-
-import java.time.LocalDateTime;
+import java.net.URI;
 import java.util.List;
 import java.util.Optional;
 
@@ -24,38 +21,24 @@ import java.util.Optional;
 @RestController
 @RequestMapping("/pedidos")
 @CrossOrigin(origins = "*", allowedHeaders = "*")
+@RequiredArgsConstructor
 public class PedidosController {
 
-    @Autowired
-    private PedidosRepository repository;
-    @Autowired
-    private AuthorizationService userService;
-    @Autowired
-    private PecasRepository pecasRepository;
-    @Autowired
-    private PedidoService pedidoService;
+    private final PedidosRepository repository;
+    private final UserService userService;
+    private final PecasRepository pecasRepository;
+    private final PedidoService pedidoService;
 
-    @GetMapping("/pedidos")
-    public ResponseEntity getAllPedidos() {
+
+    @GetMapping("all")
+    public ResponseEntity<List<Pedidos>> getAllPedidos() {
         List<Pedidos> pedidos = pedidoService.findAll();
-        if (pedidos.isEmpty()) {
-            return ResponseEntity.noContent().build();
-        }
         return ResponseEntity.ok(pedidos);
     }
 
     @GetMapping("/{status}")
     public ResponseEntity<List<CustomPedidoResponse>> getPedidosByStatus(@PathVariable String status) {
         List<CustomPedidoResponse> pedidos = pedidoService.getPedidosByStatus(status);
-        if (pedidos.isEmpty()) {
-            return ResponseEntity.noContent().build();
-        }
-        return ResponseEntity.ok(pedidos);
-    }
-
-    @GetMapping("/allpedido/{status}/{status2}")
-    public ResponseEntity<List<CustomPedidoResponse>> getPedidosByStatusAndStatus(@PathVariable String status, @PathVariable String status2) {
-        List<CustomPedidoResponse> pedidos = pedidoService.getPedidosByStatusOrStatus(status, status2);
         if (pedidos.isEmpty()) {
             return ResponseEntity.noContent().build();
         }
@@ -155,8 +138,17 @@ public class PedidosController {
 
     @CrossOrigin(origins = "*")
     @PostMapping
-    public ResponseEntity<Void> registerPedido(@RequestBody @Valid RequestPedidos pedido) {
-        return pedidoService.registerPedido(pedido);
+    public ResponseEntity<Pedidos> registerPedido(@RequestBody @Valid RequestPedidos pedidoDTO) {
+        try {
+            Pedidos pedidoCriado = pedidoService.registerPedido(pedidoDTO);
+            return ResponseEntity
+                    .created(URI.create("/pedidos/" + pedidoCriado.getId()))
+                    .body(pedidoCriado);
+        } catch (EntityNotFoundException e) {
+            return ResponseEntity.notFound().build();
+        } catch (IllegalStateException e) {
+            return ResponseEntity.badRequest().build();
+        }
     }
 
     @PutMapping("{id}")
@@ -173,7 +165,7 @@ public class PedidosController {
             pedido.setStatus("FATURADO");
             return ResponseEntity.ok(pedido);
         } else {
-            throw new EntityNotFoundException();
+            return ResponseEntity.noContent().build();
         }
     }
 

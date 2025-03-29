@@ -1,4 +1,4 @@
-package com.lacamentopeca.pedidosDePecas.infra.exceptions;
+package com.lacamentopeca.pedidosDePecas.exceptions;
 
 import com.lacamentopeca.pedidosDePecas.infra.security.UsernameAlreadyExistsException;
 import jakarta.persistence.EntityNotFoundException;

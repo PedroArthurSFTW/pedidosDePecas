@@ -7,32 +7,30 @@ import com.lacamentopeca.pedidosDePecas.services.PecasService;
 import jakarta.persistence.EntityNotFoundException;
 import jakarta.transaction.Transactional;
 import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.server.ResponseStatusException;
+
 import java.util.List;
 import java.util.Optional;
 
 
 @RestController
 @RequestMapping("/pecas")
+@RequiredArgsConstructor
 public class PecasController {
-    @Autowired
-    private PecasRepository repository;
-    private PecasService service;
 
-
+    private final PecasRepository repository;
+    private final PecasService service;
 
     @CrossOrigin(origins = "*")
-    @GetMapping("{cod_item}")
-    public ResponseEntity getPecaByCodigo2(@PathVariable Integer cod_item) {
-        Pecas peca = repository.findByCodPecaDatasul(cod_item);
-        if (peca != null) {
-            System.out.println(peca);
-            return ResponseEntity.ok(peca);
-        } else {
-            return ResponseEntity.notFound().build();
-        }
+    @GetMapping("codpeca/{cod_item}")
+    public ResponseEntity<Pecas> getPecaByCodigo(@PathVariable Integer cod_item) {
+        Pecas peca = service.getPecaByCodPecaDatasul(cod_item);
+        return peca != null ? ResponseEntity.ok(peca) : ResponseEntity.notFound().build();
     }
 
     @CrossOrigin(origins = "*")
@@ -50,13 +48,6 @@ public class PecasController {
     public ResponseEntity getAllPecas(){
         var allPecas = repository.findAll();
         return ResponseEntity.ok(allPecas);
-    }
-
-    @CrossOrigin(origins = "*")
-    @GetMapping("codpeca/{cod_item}")
-    public ResponseEntity<Pecas> getPecaByCodigo(@PathVariable Integer cod_item) {
-        Pecas peca = service.getPecaByCodPecaDatasul(cod_item);
-        return peca != null ? ResponseEntity.ok(peca) : ResponseEntity.notFound().build();
     }
 
     @CrossOrigin(origins = "*")
@@ -92,39 +83,68 @@ public class PecasController {
 
     @CrossOrigin(origins = "*")
     @PostMapping("/register")
-    public ResponseEntity registerPecas(@RequestBody @Valid RequestPecas data){
-        Pecas newPecas = new Pecas(data);
-        System.out.println(data);
-        repository.save(newPecas);
-        return ResponseEntity.ok().build();
+    public ResponseEntity<?> registerPecas(@RequestBody @Valid RequestPecas data) {
+        try {
+            Pecas newPecas = new Pecas(data);
+            System.out.println(data);
+            Pecas savedPecas = repository.save(newPecas);
+            return ResponseEntity.ok(savedPecas);
+        } catch (Exception e) {
+            System.err.println("Erro ao registrar peça: " + e.getMessage());
+            return ResponseEntity
+                    .status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body("Erro ao registrar peça: " + e.getMessage());
+        }
     }
 
-    @PutMapping()
+    @PutMapping
     @Transactional
-    public ResponseEntity updatePecas(@RequestBody @Valid RequestPecas data){
-        Optional<Pecas> optionalPecas = repository.findById(data.id());
-        if(optionalPecas.isPresent()){
-            Pecas pecas = optionalPecas.get();
+    public ResponseEntity<?> updatePecas(@RequestBody @Valid RequestPecas data) {
+        try {
+            Pecas pecas = repository.findById(data.id())
+                    .orElseThrow(() -> new ResponseStatusException(
+                            HttpStatus.NOT_FOUND,
+                            "Peça não encontrada com o ID: " + data.id()
+                    ));
             pecas.setNomePeca(data.nome_peca());
             pecas.setCodPecaDatasul(data.codPecaDatasul());
             pecas.setFabricante(data.fabricante());
             pecas.setPartNumber(data.partNumber());
-            return ResponseEntity.ok(pecas);
-        } else {
-            throw new EntityNotFoundException();
+            Pecas updatedPecas = repository.save(pecas);
+
+            return ResponseEntity.ok(updatedPecas);
+
+        } catch (ResponseStatusException e) {
+            throw e;
+        } catch (Exception e) {
+            throw new ResponseStatusException(
+                    HttpStatus.INTERNAL_SERVER_ERROR,
+                    "Erro ao atualizar peça: " + e.getMessage(),
+                    e
+            );
         }
     }
 
-    @DeleteMapping("{id}")
+    @DeleteMapping("/{id}")
     @Transactional
-    public ResponseEntity deletePecas(@PathVariable Integer id){
-        Optional<Pecas> optionalPecas = repository.findById(id);
-        if(optionalPecas.isPresent()){
-            Pecas pecas = optionalPecas.get();
+    public ResponseEntity<?> deletePecas(@PathVariable Integer id) {
+        try {
+            Pecas pecas = repository.findById(id)
+                    .orElseThrow(() -> new ResponseStatusException(
+                            HttpStatus.NOT_FOUND,
+                            "Peça não encontrada com o ID: " + id
+                    ));
             pecas.setActive(false);
-            return ResponseEntity.noContent().build();
-        }else {
-            throw new EntityNotFoundException();
+            repository.save(pecas);
+            return ResponseEntity.ok(pecas);
+        } catch (ResponseStatusException e) {
+            throw e;
+        } catch (Exception e) {
+            throw new ResponseStatusException(
+                    HttpStatus.INTERNAL_SERVER_ERROR,
+                    "Erro ao desativar peça: " + e.getMessage(),
+                    e
+            );
         }
     }
 }
